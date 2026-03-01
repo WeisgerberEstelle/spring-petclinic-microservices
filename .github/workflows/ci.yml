@@ -1,0 +1,53 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build_job:
+    name: Build
+    runs-on: ubuntu-latest
+    container:
+      image: eclipse-temurin:17-jdk-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Maven repository
+        uses: actions/cache@v4
+        with:
+          path: .m2/repository
+          key: build-${{ hashFiles('**/pom.xml') }}
+      - name: Compile
+        run: >
+          ./mvnw compile
+          -Dhttps.protocols=TLSv1.2
+          -Dmaven.repo.local=${{ github.workspace }}/.m2/repository
+          -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN
+          -Dorg.slf4j.simpleLogger.showDateTime=true
+          -Djava.awt.headless=true
+          --batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true
+
+  test_job:
+    name: Test
+    needs: build_job
+    runs-on: ubuntu-latest
+    container:
+      image: eclipse-temurin:17-jdk-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Maven repository
+        uses: actions/cache@v4
+        with:
+          path: .m2/repository
+          key: test-${{ hashFiles('**/pom.xml') }}
+      - name: Test
+        run: >
+          ./mvnw test
+          -Dhttps.protocols=TLSv1.2
+          -Dmaven.repo.local=${{ github.workspace }}/.m2/repository
+          -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN
+          -Dorg.slf4j.simpleLogger.showDateTime=true
+          -Djava.awt.headless=true
+          --batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true
